@@ -169,6 +169,33 @@ app.post('/get-messages', async (req: Request, res: Response): Promise<any> => {
     }
 });
 
+// Delete all chat rows for a user
+app.post('/clear-messages', async (req: Request, res: Response): Promise<any> => {
+    const { userId } = req.body ?? {};
+
+    if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+    }
+
+    try {
+        const existingUser = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, userId));
+
+        if (!existingUser.length) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        await db.delete(chats).where(eq(chats.userId, userId));
+
+        res.status(200).json({ ok: true });
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
