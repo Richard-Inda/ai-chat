@@ -131,6 +131,26 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
     }
 });
 
+// Get chat history for a user
+app.post('/get-messages', async (req: Request, res: Response): Promise<any> => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'Message and user are required' });
+    }
+
+    try{
+        const chatHistory = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, userId));
+
+        res.status(200).json({ chatHistory });
+    } catch (error) {
+        console.error('Error getting chat history:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
