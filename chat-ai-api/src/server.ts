@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { StreamChat } from "stream-chat";
+import { StreamChat, type ChannelData } from "stream-chat";
 import OpenAI from "openai";
 import { db } from "./config/database.js";
 import { chats, users } from "./db/schema.js";
@@ -42,10 +42,10 @@ app.post('/register-user',
             const userResponse = await chatClient.queryUsers({ id: { $eq: userId } });
 
             if (!userResponse.users.length) {
+                // Stream's UserResponse type does not include `email`; id is derived from email above.
                 await chatClient.upsertUser({
                     id: userId,
-                    name: name,
-                    email: email,
+                    name,
                     role: 'user',
                 });
             }
@@ -132,10 +132,10 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
             });
 
             //Create or get channel
-            const channel = chatClient.channel('messaging',`chat-${userId}`, {
-                name: `AI Chat`,
+            const channel = chatClient.channel('messaging', `chat-${userId}`, {
+                name: 'AI Chat',
                 created_by_id: 'ai_bot',
-            });
+            } as ChannelData);
 
             await channel. create();
             await channel.sendMessage({text: aiMessage, user_id: 'ai_bot'});
