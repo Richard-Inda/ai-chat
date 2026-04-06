@@ -26,16 +26,13 @@ export const useChatStore = defineStore('chat', () => {
         try {
             const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/get-messages`, { userId: userStore.userId });
 
-            const chatHistory = Array.isArray(data?.messages) ? data.messages : [];
-
-            messages.value = chatHistory
+            const rows = data.chatHistory ?? [];
+            messages.value = rows
                 .flatMap((msg: ChatMessage): FormattedMessage[] => [
                     { role: 'user', content: msg.message },
                     { role: 'ai', content: msg.reply }
                 ])
                 .filter((msg: FormattedMessage) => msg.content.trim());
-
-                console.log('get-messages response:', data);
 
         } catch (error) {
             console.error('Error loading chat history:', error);
