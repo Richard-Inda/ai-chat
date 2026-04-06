@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import Header from '../components/Header.vue';
-import {onMounted,nextTick} from 'vue';
+import { onMounted, nextTick, ref, watch } from 'vue';
 import { useChatStore } from '../stores/chat';
 import { useUserStore } from '../stores/user';
-import {useRouter} from 'vue-router';
+import { useRouter } from 'vue-router';
 import ChatInput from '../components/ChatInput.vue';
 
 const chatStore = useChatStore();
 const userStore = useUserStore();
 const router = useRouter();
+
+const chatContainer = ref<HTMLElement | null>(null);
 
 //Ensure user is logged in
 if (!userStore.userId) {
@@ -31,20 +33,34 @@ const formatMessage = (text: string) => {
     .replace(/<\/li>$/, '</li></ul>'); // Close the `<ul>`
 };
 
-// Auto-scroll to bottom
+// Auto-scroll after DOM updates (double nextTick helps when v-html changes height)
 const scrollToBottom = () => {
     nextTick(() => {
-        const chatContainer = document.getElementById('chat-container');
-        if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
+        nextTick(() => {
+            const el = chatContainer.value;
+            if (el) {
+                el.scrollTop = el.scrollHeight;
+            }
+        });
     });
 };
 
-onMounted(()=>{
-    chatStore.loadChatHistory();
+watch(() => chatStore.messages, () => scrollToBottom(), { deep: true });
+watch(() => chatStore.isLoading, () => scrollToBottom());
+
+const onClearChat = async () => {
+    try {
+        await chatStore.clearChatHistory();
+        scrollToBottom();
+    } catch {
+        alert('Could not clear chat history. Please try again.');
+    }
+};
+
+onMounted(async () => {
+    await chatStore.loadChatHistory();
     scrollToBottom();
-})
+});
 
 </script>
 
@@ -52,7 +68,7 @@ onMounted(()=>{
     <div class="flex flex-col h-screen bg-gray-900 text-white">
         <Header />
 
-        <div id="chat-container" class="flex-1 p-4 overflow-y-auto p-4 space-y-4">
+        <div ref="chatContainer" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             <div v-for="(msg,index) in chatStore.messages" :key="index" 
                 class="flex items-start" 
                 :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
@@ -71,7 +87,7 @@ onMounted(()=>{
             </div>
         </div>
         <div>
-            <ChatInput @send="chatStore.sendMessage" />
+            <ChatInput @send="chatStore.sendMessage" @clear="onClearChat" />
         </div>
     </div>
 </template>
