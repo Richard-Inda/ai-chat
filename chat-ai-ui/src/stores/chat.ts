@@ -59,5 +59,19 @@ export const useChatStore = defineStore('chat', () => {
         }
     };
 
-    return { messages, isLoading, loadChatHistory, sendMessage };
+    const clearChatHistory = async () => {
+        if (!userStore.userId) return;
+
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL}/clear-messages`, {
+                userId: userStore.userId,
+            });
+            messages.value = [];
+        } catch (error) {
+            console.error('Error clearing chat history:', error);
+            throw error;
+        }
+    };
+
+    return { messages, isLoading, loadChatHistory, sendMessage, clearChatHistory };
 })
