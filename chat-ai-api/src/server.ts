@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { StreamChat } from "stream-chat";
 import OpenAI from "openai";
+import { db } from "./config/database.js";
+import { chats, users } from "./db/schema.js";
+import { eq } from "drizzle-orm";
+import { ChatCompletionMessageParam } from "openai/resources";
 
 dotenv.config();
 
@@ -33,7 +37,8 @@ app.post('/register-user',
 
         try {
             const userId = email.replace(/[^a-zA-Z0-9_-]/g, '_');
-
+            
+            // Check if user exists in Stream Chat
             const userResponse = await chatClient.queryUsers({ id: { $eq: userId } });
 
             if (!userResponse.users.length) {
@@ -42,6 +47,21 @@ app.post('/register-user',
                     name: name,
                     email: email,
                     role: 'user',
+                });
+            }
+
+            //Checking for existing user in database
+            const existingUser = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, userId));
+
+            if (!existingUser.length) {
+                console.log(`User ${userId} not found in database, creating new user`);
+                await db.insert(users).values({
+                    id: userId,
+                    name: name,
+                    email: email,
                 });
             }
 
@@ -63,18 +83,36 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
     }
 
     try {
+        // Check if user exists in Stream Chat
         const userResponse = await chatClient.queryUsers({ id: userId });
 
         if (!userResponse.users.length) {
             return res.status(404).json({ error: 'User not found. Please register first' });
         }
 
+        //Checking for existing user in database
+        const existingUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+        if (!existingUser.length) {
+            return res.status(404).json({ error: 'User not found. Please register first' });
+        }
+        
         //Prompt OpenAi GPT-4o mini
         const response = await openai.chat.completions.create({ 
             model: 'gpt-4o-mini', 
             messages: [{ role: 'user', content: message }] });
 
             const aiMessage = response.choices[0].message?.content??'No Response from Ai';
+
+            //Save chat to database
+            await db.insert(chats).values({
+                userId,
+                message,
+                reply: aiMessage,
+            });
 
             //Create or get channel
             const channel = chatClient.channel('messaging',`chat-${userId}`, {
@@ -91,8 +129,8 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
         console.error('Error Generating Ai Response:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-
 });
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
