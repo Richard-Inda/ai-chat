@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import robotImage from '../assets/robot.png';
+import { useUserStore } from '../stores/user';
+import { useRouter } from 'vue-router';
 import { ref } from 'vue';
+import axios from 'axios';
+
+const userStore=useUserStore();
+const router=useRouter();
 
 const name=ref('');
 const email=ref('');
@@ -13,6 +19,26 @@ const createUser=async()=>{
         return;
     }
 
+    loading.value=true;
+    error.value='';
+    try{
+        const {data}=await axios.post(`${import.meta.env.VITE_API_URL}/register-user`, { 
+            name: name.value, 
+            email: email.value 
+        });
+
+        userStore.setUser({
+            userId: data.userId, 
+            name:data.name,
+            email: data.email,
+            });
+
+        router.push('/chat');
+    } catch (err){
+        error.value='Failed to create user. Please try again.';
+    } finally {
+        loading.value=false;
+    }
 };
 
 </script>
