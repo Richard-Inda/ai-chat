@@ -4,6 +4,7 @@ import {onMounted,nextTick} from 'vue';
 import { useChatStore } from '../stores/chat';
 import { useUserStore } from '../stores/user';
 import {useRouter} from 'vue-router';
+import ChatInput from '../components/ChatInput.vue';
 
 const chatStore = useChatStore();
 const userStore = useUserStore();
@@ -45,6 +46,14 @@ onMounted(()=>{
                     {{ msg.content }}
                 </div>
             </div>
+            <div v-if="chatStore.isLoading" class="flex justify-start">
+                <div class="bg-gray-700 text-white px-4 py-2 rounded-lg">
+                    <span class="animate-pulse">Thinking...</span>
+                </div>
+            </div>
+        </div>
+        <div>
+            <ChatInput @send="chatStore.sendMessage" />
         </div>
     </div>
 </template>
