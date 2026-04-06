@@ -99,11 +99,28 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
         if (!existingUser.length) {
             return res.status(404).json({ error: 'User not found. Please register first' });
         }
+
+        // Fetch users past messages for context
+        const chatHistory = await db
+            .select()
+            .from(chats)
+            .where(eq(chats.userId, userId))
+            .orderBy(chats.createdAt)
+            .limit(10);
+
+        // Formatting chat history for Open Ai
+        const conversation: ChatCompletionMessageParam[] = chatHistory.flatMap((chat)=>[
+            { role: 'user', content: chat.message },
+            { role: 'assistant', content: chat.reply },
+        ]);
+
+        // Adding new user messages to conversation
+        conversation.push({ role: 'user', content: message });
         
         //Prompt OpenAi GPT-4o mini
         const response = await openai.chat.completions.create({ 
             model: 'gpt-4o-mini', 
-            messages: [{ role: 'user', content: message }] });
+            messages: conversation as ChatCompletionMessageParam[] });
 
             const aiMessage = response.choices[0].message?.content??'No Response from Ai';
 
